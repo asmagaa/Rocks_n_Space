@@ -93,7 +93,19 @@ class AppWidget(Static):
 class MenuWidget(Vertical):
     def compose(selfs) -> ComposeResult:
         yield Button("Play", id="play")
+        yield Button("Options", id="options")
         yield Button("Quit", id="quit")
+
+class SettingsWidget(Vertical):
+    def __init__(self, current_colors):
+        super().__init__()
+        self.current_colors = current_colors
+
+    def compose(self) -> ComposeResult:
+        yield Button("Player color: " + self.current_colors["player"], id="player_color")
+        yield Button("Rock color", id="rock_color")
+        yield Button("Back", id="back")
+
 
 class App(App):
     CSS_PATH = ("styles.tcss")
@@ -103,14 +115,19 @@ class App(App):
         self.state = "menu"
         self.game_widget = None
         self.menu_widget = None
+        self.settings_widget = None
         self.rock_timer = None
+        self.colors = {"player": "red", "green", "yellow", "purple", "cyan", "white", "black"}
 
     def compose(self) -> ComposeResult:
         if self.state == "menu":
             self.menu_widget = MenuWidget()
             yield self.menu_widget
         else:
-            self.game_widget = AppWidget()
+            self.settings_widget = SettingsWidget(self.colors)
+            yield self.settings_widget
+        else:
+            self.game_widget = AppWidget(self.colors)
             yield self.game_widget
 
     def on_mount(self):
@@ -131,11 +148,33 @@ class App(App):
                 self.menu_widget.remove()
             if self.game_widget:
                 self.game_widget.remove()
-            self.game_widget = AppWidget()
+            self.game_widget = AppWidget(self.colors)
             self.mount(self.game_widget)
             self.rock_timer = self.set_interval(0.5, self.update_rocks)
+        elif event.button.id == "options":
+            self.state = "settings"
+            if self.menu_widdget:
+                self.menu_widget.remove()
+            self.settings_widget = SettingsWidget(self.colors)
+            self.mount(self.settings_widget)
         elif event.button.id == "quit":
             self.exit()
+        elif event.button.id == "back":
+            if self.settings_widget:
+                self.settings_widget.remove()
+            self.state = "menu"
+            self.menu_widget = MenuWidget(self.colors)
+            self.mount(self.menu_widget)
+        elif event.button.id == "player_color":
+            self.colors["player"] = "green" if self.colors["player"] == "red" else "red"
+            self.settings_widget.remove()
+            self.settings_widget = SettingsWidget(self.colors)
+            self.mount(self.settings_widget)
+        elif event.button.id == "rock_color":
+            self.colors["rock"] = "blue" if self.colors["rock"] == "red" else "red"
+            self.settings_widget.remove()
+            self.settings_widget = SettingsWidget(self.colors)
+            self.mount(self.settings_widget)
 
     def on_key(self, event: Key) -> None:
         if self.state == "menu":
