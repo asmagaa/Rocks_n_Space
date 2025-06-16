@@ -34,31 +34,30 @@ class Player:
             return True
         return False
 
-class Map:
+class GameMap:
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        self.tiles = [['_' for _ in range(width)] for _ in range(height)]
+        self.tiles = [['.' for _ in range(width)] for _ in range(height)]
 
-class AppWidget(Static):
+class GameWidget(Static):
     def __init__(self):
         super().__init__()
-        self.game_map = Map(MAP_WIDTH, MAP_HEIGHT)
+        self.game_map = GameMap(MAP_WIDTH, MAP_HEIGHT)
         self.player = Player(MAP_WIDTH // 2, MAP_HEIGHT // 2)
         self.rocks = []
         self.game_over = False
 
-    def rock_spawn(self):
-        side = random.choice (['top', 'bottom', 'left', 'right'])
-
+    def spawn_rock(self):
+        side = random.choice(['top', 'bottom', 'left', 'right'])
         if side == 'top':
-            x, y, dx, dy = random.randint(0, MAP_WIDTH - 1), 0, 0, 1
+            x, y, dx, dy = random.randint(0, MAP_WIDTH-1), 0, 0, 1
         elif side == 'bottom':
-            x, y, dx, dy = random.randint(0, MAP_WIDTH - 1), MAP_HEIGHT - 1, 0, -1
+            x, y, dx, dy = random.randint(0, MAP_WIDTH-1), MAP_HEIGHT-1, 0, -1
         elif side == 'left':
-            x, y, dx, dy = 0, random.randint(0, MAP_HEIGHT - 1), 1, 0
-        elif side == 'right':
-            x, y, dx, dy = MAP_WIDTH - 1, random.randint(0, MAP_HEIGHT - 1), -1, 0
+            x, y, dx, dy = 0, random.randint(0, MAP_HEIGHT-1), 1, 0
+        else:
+            x, y, dx, dy = MAP_WIDTH-1, random.randint(0, MAP_HEIGHT-1), -1, 0
         self.rocks.append(Rock(x, y, dx, dy))
 
     def move_rocks(self):
@@ -69,7 +68,7 @@ class AppWidget(Static):
             if 0 <= rock.x < MAP_WIDTH and 0 <= rock.y < MAP_HEIGHT
         ]
 
-    def collision(self):
+    def check_collision(self):
         for rock in self.rocks:
             if rock.x == self.player.x and rock.y == self.player.y:
                 self.game_over = True
@@ -91,43 +90,27 @@ class AppWidget(Static):
         return Text("\n".join(display), justify="center")
 
 class MenuWidget(Vertical):
-    def compose(selfs) -> ComposeResult:
+    def compose(self) -> ComposeResult:
         yield Button("Play", id="play")
         yield Button("Options", id="options")
-        yield Button("Quit", id="quit")
+        yield Button("Leave", id="leave")
 
-class SettingsWidget(Vertical):
-    def __init__(self, current_colors):
-        super().__init__()
-        self.current_colors = current_colors
-
-    def compose(self) -> ComposeResult:
-        yield Button("Player color: " + self.current_colors["player"], id="player_color")
-        yield Button("Rock color", id="rock_color")
-        yield Button("Back", id="back")
-
-
-class App(App):
-    CSS_PATH = ("styles.tcss")
+class SimpleGameApp(App):
+    CSS_PATH = "styles.tcss"
 
     def __init__(self):
         super().__init__()
         self.state = "menu"
         self.game_widget = None
         self.menu_widget = None
-        self.settings_widget = None
-        self.rock_timer = None
-        self.colors = {"player": "red", "green", "yellow", "purple", "cyan", "white", "black"}
+        self.rock_timer: Timer | None = None
 
     def compose(self) -> ComposeResult:
         if self.state == "menu":
             self.menu_widget = MenuWidget()
             yield self.menu_widget
         else:
-            self.settings_widget = SettingsWidget(self.colors)
-            yield self.settings_widget
-        else:
-            self.game_widget = AppWidget(self.colors)
+            self.game_widget = GameWidget()
             yield self.game_widget
 
     def on_mount(self):
@@ -136,10 +119,10 @@ class App(App):
 
     def update_rocks(self):
         if self.game_widget and not self.game_widget.game_over:
-            self.game_widget.rock_spawn()
+            self.game_widget.spawn_rock()
             self.game_widget.move_rocks()
-            self.game_widget.collision()
-            self.refresh()
+            self.game_widget.check_collision()
+            self.game_widget.refresh()
 
     def on_button_pressed(self, event):
         if event.button.id == "play":
@@ -148,33 +131,11 @@ class App(App):
                 self.menu_widget.remove()
             if self.game_widget:
                 self.game_widget.remove()
-            self.game_widget = AppWidget(self.colors)
+            self.game_widget = GameWidget()
             self.mount(self.game_widget)
-            self.rock_timer = self.set_interval(0.5, self.update_rocks)
-        elif event.button.id == "options":
-            self.state = "settings"
-            if self.menu_widdget:
-                self.menu_widget.remove()
-            self.settings_widget = SettingsWidget(self.colors)
-            self.mount(self.settings_widget)
-        elif event.button.id == "quit":
+            self.rock_timer = self.set_interval(0.2, self.update_rocks)
+        elif event.button.id == "leave":
             self.exit()
-        elif event.button.id == "back":
-            if self.settings_widget:
-                self.settings_widget.remove()
-            self.state = "menu"
-            self.menu_widget = MenuWidget(self.colors)
-            self.mount(self.menu_widget)
-        elif event.button.id == "player_color":
-            self.colors["player"] = "green" if self.colors["player"] == "red" else "red"
-            self.settings_widget.remove()
-            self.settings_widget = SettingsWidget(self.colors)
-            self.mount(self.settings_widget)
-        elif event.button.id == "rock_color":
-            self.colors["rock"] = "blue" if self.colors["rock"] == "red" else "red"
-            self.settings_widget.remove()
-            self.settings_widget = SettingsWidget(self.colors)
-            self.mount(self.settings_widget)
 
     def on_key(self, event: Key) -> None:
         if self.state == "menu":
@@ -184,7 +145,7 @@ class App(App):
                 self.exit()
             if event.key.lower() == "r":
                 self.game_widget.remove()
-                self.game_widget = AppWidget()
+                self.game_widget = GameWidget()
                 self.mount(self.game_widget)
                 if self.rock_timer:
                     self.rock_timer.stop()
@@ -204,14 +165,12 @@ class App(App):
         elif key == "d":
             moved = self.game_widget.player.move(1, 0, MAP_WIDTH, MAP_HEIGHT)
         if moved:
-            self.game_widget.collision()
+            self.game_widget.check_collision()
             self.game_widget.refresh()
 
 def main():
-    app = App()
+    app = SimpleGameApp()
     app.run()
 
 if __name__ == "__main__":
     main()
-
-
