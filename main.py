@@ -47,6 +47,7 @@ class GameWidget(Static):
         self.player = Player(MAP_WIDTH // 2, MAP_HEIGHT // 2)
         self.rocks = []
         self.game_over = False
+        self.survival_time = 0
 
     def spawn_rock(self):
         side = random.choice(['top', 'bottom', 'left', 'right'])
@@ -75,19 +76,26 @@ class GameWidget(Static):
 
     def render(self) -> Text:
         if self.game_over:
-            return Text("\n\nYOU LOSE\n\nPress R to retry or Q to quit.", justify="center")
+            return Text(
+                f"\n\nYOU LOSE\n\nSurvival Time: {self.survival_time:.1f} seconds\n\nPress R to retry or Q to quit.",
+                justify="center")
+
+        minutes = int(self.survival_time // 60)
+        seconds = int(self.survival_time % 60)
+        time_display = f"Time: {minutes:02d}:{seconds:02d}"
+
         display = []
         for y in range(self.game_map.height):
             line = ""
             for x in range(self.game_map.width):
                 if x == self.player.x and y == self.player.y:
-                    line += "@"
-                elif any(rock.x == x and rock.y == y for rock in self.rocks):
                     line += "O"
+                elif any(rock.x == x and rock.y == y for rock in self.rocks):
+                    line += "x"
                 else:
-                    line += "."
+                    line += "_"
             display.append(line)
-        return Text("\n".join(display), justify="center")
+        return Text(time_display + "\n\n" + "\n".join(display), justify="center")
 
 class MenuWidget(Vertical):
     def compose(self) -> ComposeResult:
@@ -95,7 +103,7 @@ class MenuWidget(Vertical):
         yield Button("Options", id="options")
         yield Button("Leave", id="leave")
 
-class SimpleGameApp(App):
+class GameApp(App):
     CSS_PATH = "styles.tcss"
 
     def __init__(self):
@@ -104,6 +112,7 @@ class SimpleGameApp(App):
         self.game_widget = None
         self.menu_widget = None
         self.rock_timer: Timer | None = None
+        self.time_timer: Timer | None = None
 
     def compose(self) -> ComposeResult:
         if self.state == "menu":
@@ -116,12 +125,18 @@ class SimpleGameApp(App):
     def on_mount(self):
         if self.state == "game":
             self.rock_timer = self.set_interval(0.5, self.update_rocks)
+            self.time_timer = self.set_interval(0.5, self.update_time)
 
     def update_rocks(self):
         if self.game_widget and not self.game_widget.game_over:
             self.game_widget.spawn_rock()
             self.game_widget.move_rocks()
             self.game_widget.check_collision()
+            self.game_widget.refresh()
+
+    def update_time(self):
+        if self.game_widget and not self.game_widget.game_over:
+            self.game_widget.survival_time += 0.5
             self.game_widget.refresh()
 
     def on_button_pressed(self, event):
@@ -133,7 +148,8 @@ class SimpleGameApp(App):
                 self.game_widget.remove()
             self.game_widget = GameWidget()
             self.mount(self.game_widget)
-            self.rock_timer = self.set_interval(0.2, self.update_rocks)
+            self.rock_timer = self.set_interval(0.5, self.update_rocks)
+            self.time_timer = self.set_interval(0.5, self.update_time)
         elif event.button.id == "leave":
             self.exit()
 
@@ -149,7 +165,10 @@ class SimpleGameApp(App):
                 self.mount(self.game_widget)
                 if self.rock_timer:
                     self.rock_timer.stop()
+                if self.rock_timer:
+                    self.time_timer.stop()
                 self.rock_timer = self.set_interval(0.5, self.update_rocks)
+                self.time_timer = self.set_interval(0.5, self.update_time)
             return
         key = event.key.lower()
         moved = False
@@ -169,7 +188,7 @@ class SimpleGameApp(App):
             self.game_widget.refresh()
 
 def main():
-    app = SimpleGameApp()
+    app = GameApp()
     app.run()
 
 if __name__ == "__main__":
