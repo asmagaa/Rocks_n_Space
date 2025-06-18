@@ -6,7 +6,7 @@ from textual.timer import Timer
 from rich.text import Text
 import random
 
-MAP_WIDTH = 20 + 1
+MAP_WIDTH = 30 + 1
 MAP_HEIGHT = 20 + 1
 
 class Rock:
@@ -41,24 +41,27 @@ class GameMap:
         self.tiles = [['.' for _ in range(width)] for _ in range(height)]
 
 class GameWidget(Static):
-    def __init__(self):
+    def __init__(self, map_width=MAP_WIDTH, map_height=MAP_HEIGHT, fast_player=False):
         super().__init__()
-        self.game_map = GameMap(MAP_WIDTH, MAP_HEIGHT)
-        self.player = Player(MAP_WIDTH // 2, MAP_HEIGHT // 2)
+        self.game_map = GameMap(map_width, map_height)
+        self.player = Player(map_width // 2, map_height // 2)
         self.rocks = []
         self.game_over = False
         self.survival_time = 0
+        self.map_width = map_width
+        self.map_height = map_height
+        self.fast_player = fast_player
 
     def spawn_rock(self):
         side = random.choice(['top', 'bottom', 'left', 'right'])
         if side == 'top':
-            x, y, dx, dy = random.randint(0, MAP_WIDTH-1), 0, 0, 1
+            x, y, dx, dy = random.randint(0, self.map_width - 1), 0, 0, 1
         elif side == 'bottom':
-            x, y, dx, dy = random.randint(0, MAP_WIDTH-1), MAP_HEIGHT-1, 0, -1
+            x, y, dx, dy = random.randint(0, self.map_width - 1), self.map_height - 1, 0, -1
         elif side == 'left':
-            x, y, dx, dy = 0, random.randint(0, MAP_HEIGHT-1), 1, 0
+            x, y, dx, dy = 0, random.randint(0, self.map_height - 1), 1, 0
         else:
-            x, y, dx, dy = MAP_WIDTH-1, random.randint(0, MAP_HEIGHT-1), -1, 0
+            x, y, dx, dy = self.map_width - 1, random.randint(0, self.map_height - 1), -1, 0
         self.rocks.append(Rock(x, y, dx, dy))
 
     def move_rocks(self):
@@ -66,7 +69,7 @@ class GameWidget(Static):
             rock.move()
         self.rocks = [
             rock for rock in self.rocks
-            if 0 <= rock.x < MAP_WIDTH and 0 <= rock.y < MAP_HEIGHT
+            if 0 <= rock.x < self.map_width and 0 <= rock.y < self.map_height
         ]
 
     def check_collision(self):
@@ -77,7 +80,7 @@ class GameWidget(Static):
     def render(self) -> Text:
         if self.game_over:
             return Text(
-                f"\n\nYOU LOSE\n\nSurvival Time: {self.survival_time:.1f} seconds\n\nPress R to retry or Q to quit.",
+                f"\n\nYOU LOSE\n\nSurvival Time: {self.survival_time:.1f} seconds\n\nPress R to retry or Q to return to the menu.",
                 justify="center")
 
         minutes = int(self.survival_time // 60)
@@ -179,10 +182,27 @@ class GameApp(App):
         if event.button.id == "play":
             self.state = "game"
             self._clear_widgets()
-            self.game_widget = GameWidget()
+
+            map_width = MAP_WIDTH * 2 if self.settings["large_map"] else MAP_WIDTH
+            map_height = MAP_HEIGHT * 2 if self.settings["large_map"] else MAP_HEIGHT
+
+            self.game_widget = GameWidget(
+                map_width=map_width,
+                map_height=map_height,
+                fast_player=self.settings["player_speed"]
+            )
+
+
             self.mount(self.game_widget)
-            self.rock_timer = self.set_interval(0.5, self.update_rocks)
+
+            rock_interval = 0.3 if self.settings["faster_rocks"] else 0.5
+            self.rock_timer = self.set_interval(rock_interval, self.update_rocks)
             self.time_timer = self.set_interval(0.5, self.update_time)
+
+            if self.settings["more_rocks"]:
+                for _ in range(5):
+                    self.game_widget.spawn_rock()
+
         elif event.button.id == "options":
             self.state = "options"
             self._clear_widgets()
@@ -197,9 +217,16 @@ class GameApp(App):
             self.exit()
 
     def on_checkbox_changed(self, event):
-        setting_id = event.checkbox.id
-        if setting_id in self.settings:
-            self.settings[settin_id] = event.value
+        checkbox_to_settings = {
+            "player-speed": "player_speed",
+            "more-rocks": "more_rocks",
+            "faster-rocks": "faster_rocks",
+            "large-map": "large_map"
+        }
+
+        if event.checkbox.id in checkbox_to_settings:
+            setting_key = checkbox_to_settings[event.checkbox.id]
+            self.settings[setting_key] = event.value
 
     def _clear_widgets(self):
         if self.menu_widget:
@@ -213,35 +240,63 @@ class GameApp(App):
             self.options_widget = None
 
     def on_key(self, event: Key) -> None:
-        if self.state == "menu":
+        if self.state == "menu" or self.state == "options" or self.game_widget is None:
             return
-        if self.game_widget and self.game_widget.game_over:
+
+        if self.game_widget.game_over:
             if event.key.lower() == "q":
-                self.exit()
-            if event.key.lower() == "r":
-                self.game_widget.remove()
-                self.game_widget = GameWidget()
-                self.mount(self.game_widget)
                 if self.rock_timer:
                     self.rock_timer.stop()
-                if self.rock_timer:
+                if self.time_timer:
                     self.time_timer.stop()
-                self.rock_timer = self.set_interval(0.5, self.update_rocks)
+                self.state = "menu"
+                self._clear_widgets()
+                self.menu_widget = MenuWidget()
+                self.mount(self.menu_widget)
+            if event.key.lower() == "r":
+                self._clear_widgets()
+
+                map_width = MAP_WIDTH * 2 if self.settings["large_map"] else MAP_WIDTH
+                map_height = MAP_HEIGHT * 2 if self.settings["large_map"] else MAP_HEIGHT
+
+                self.game_widget = GameWidget(
+                    map_width=map_width,
+                    map_height=map_height,
+                    fast_player=self.settings["player_speed"]
+                )
+
+                self.mount(self.game_widget)
+
+                if self.rock_timer:
+                    self.rock_timer.stop()
+                if self.time_timer:
+                    self.time_timer.stop()
+
+                rock_interval = 0.3 if self.settings["faster_rocks"] else 0.5
+                self.rock_timer = self.set_interval(rock_interval, self.update_rocks)
                 self.time_timer = self.set_interval(0.5, self.update_time)
+
+                if self.settings["more_rocks"]:
+                    for _ in range(5):
+                        self.game_widget.spawn_rock()
             return
+
         key = event.key.lower()
         moved = False
+        move_amount = 2 if self.game_widget.fast_player else 1
+
         if key == "q":
             self.exit()
             return
         if key == "w":
-            moved = self.game_widget.player.move(0, -1, MAP_WIDTH, MAP_HEIGHT)
+            moved = self.game_widget.player.move(0, -move_amount, self.game_widget.map_width, self.game_widget.map_height)
         elif key == "s":
-            moved = self.game_widget.player.move(0, 1, MAP_WIDTH, MAP_HEIGHT)
+            moved = self.game_widget.player.move(0, move_amount, self.game_widget.map_width, self.game_widget.map_height)
         elif key == "a":
-            moved = self.game_widget.player.move(-1, 0, MAP_WIDTH, MAP_HEIGHT)
+            moved = self.game_widget.player.move(-move_amount, 0, self.game_widget.map_width, self.game_widget.map_height)
         elif key == "d":
-            moved = self.game_widget.player.move(1, 0, MAP_WIDTH, MAP_HEIGHT)
+            moved = self.game_widget.player.move(move_amount, 0, self.game_widget.map_width, self.game_widget.map_height)
+
         if moved:
             self.game_widget.check_collision()
             self.game_widget.refresh()
