@@ -1,0 +1,67 @@
+MenuWidget {
+    width: 100%;
+    height: 100%;
+    align: center middle;
+    content-align: center middle;
+}
+
+MenuWidget > Vertical {
+    align: center middle;
+    align-horizontal: center;
+    margin: 0;
+    width: 100%;
+    height: auto;
+}
+
+OptionsWidget {
+    width: 100%;
+    height: 100%;
+    content-align: center middle;
+    padding: 2;
+}
+
+GameWidget {
+    width: 100%;
+    height: 100%;
+    content-align: center middle;
+    padding: 2;
+}
+
+Button {
+    width: 30;
+    height: 5;
+    margin: 1;
+    content-align: center middle;
+    text-style: bold;
+}
+
+Button:focus {
+    border: heavy white;
+}
+
+#play {
+    background: green;
+    color: white;
+}
+
+#play:focus {
+    background: darkgreen;
+}
+
+#options {
+    background: blue;
+    color: white;
+}
+
+#options:focus {
+    background: darkblue;
+}
+
+#leave {
+    background: red;
+    color: white;
+}
+
+#leave:focus {
+    background: darkred;
+}
