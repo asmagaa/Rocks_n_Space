@@ -1,6 +1,6 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Static, Button
-from textual.containers import Vertical
+from textual.widgets import Static, Button, Checkbox, Label
+from textual.containers import Vertical, Horizontal
 from textual.events import Key
 from textual.timer import Timer
 from rich.text import Text
@@ -103,6 +103,31 @@ class MenuWidget(Vertical):
         yield Button("Options", id="options")
         yield Button("Leave", id="leave")
 
+class OptionsWidget(Vertical):
+    def compose(self) -> ComposeResult:
+        yield Label("Game Options", id="options-title")
+
+        yield Horizontal(
+            Label("Player Speed:"),
+            Checkbox("Fast", id="player-speed", value=False),
+            id="player-options"
+        )
+
+        yield Horizontal(
+            Label("Rocks:"),
+            Checkbox("More rocks", id="more-rocks", value=False),
+            Checkbox("Faster rocks", id="faster-rocks", value=False),
+            id="rock-options"
+        )
+
+        yield Horizontal(
+            Label("Map Size:"),
+            Checkbox("Large", id="large-map", value=False),
+            id="map-options"
+        )
+
+        yield Button("Back to menu", id="back-to-menu")
+
 class GameApp(App):
     CSS_PATH = "styles.tcss"
 
@@ -111,13 +136,24 @@ class GameApp(App):
         self.state = "menu"
         self.game_widget = None
         self.menu_widget = None
+        self.options_widget = None
         self.rock_timer: Timer | None = None
         self.time_timer: Timer | None = None
+
+        self.settings = {
+            "player_speed": False,
+            "more_rocks": False,
+            "faster_rocks": False,
+            "large_map": False
+        }
 
     def compose(self) -> ComposeResult:
         if self.state == "menu":
             self.menu_widget = MenuWidget()
             yield self.menu_widget
+        elif self.state == "options":
+            self.options_widget = OptionsWidget()
+            yield self.options_widget
         else:
             self.game_widget = GameWidget()
             yield self.game_widget
@@ -142,16 +178,39 @@ class GameApp(App):
     def on_button_pressed(self, event):
         if event.button.id == "play":
             self.state = "game"
-            if self.menu_widget:
-                self.menu_widget.remove()
-            if self.game_widget:
-                self.game_widget.remove()
+            self._clear_widgets()
             self.game_widget = GameWidget()
             self.mount(self.game_widget)
             self.rock_timer = self.set_interval(0.5, self.update_rocks)
             self.time_timer = self.set_interval(0.5, self.update_time)
+        elif event.button.id == "options":
+            self.state = "options"
+            self._clear_widgets()
+            self.options_widget = OptionsWidget()
+            self.mount(self.options_widget)
+        elif event.button.id == "back-to-menu":
+            self.state = "menu"
+            self._clear_widgets()
+            self.menu_widget = MenuWidget()
+            self.mount(self.menu_widget)
         elif event.button.id == "leave":
             self.exit()
+
+    def on_checkbox_changed(self, event):
+        setting_id = event.checkbox.id
+        if setting_id in self.settings:
+            self.settings[settin_id] = event.value
+
+    def _clear_widgets(self):
+        if self.menu_widget:
+            self.menu_widget.remove()
+            self.menu_widget = None
+        if self.game_widget:
+            self.game_widget.remove()
+            self.game_widget = None
+        if self.options_widget:
+            self.options_widget.remove()
+            self.options_widget = None
 
     def on_key(self, event: Key) -> None:
         if self.state == "menu":
