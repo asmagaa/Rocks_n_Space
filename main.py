@@ -2,12 +2,12 @@ from textual.app import App, ComposeResult
 from textual.widgets import Static, Button, Checkbox, Label
 from textual.containers import Vertical, Horizontal
 from textual.events import Key
-from textual.timer import Timer
 from rich.text import Text
 import random
 
 MAP_WIDTH = 30 + 1
 MAP_HEIGHT = 20 + 1
+
 
 class Rock:
     def __init__(self, x, y, dx, dy):
@@ -19,6 +19,7 @@ class Rock:
     def move(self):
         self.x += self.dx
         self.y += self.dy
+
 
 class Player:
     def __init__(self, x, y):
@@ -34,14 +35,25 @@ class Player:
             return True
         return False
 
+
 class GameMap:
     def __init__(self, width, height):
         self.width = width
         self.height = height
         self.tiles = [['.' for _ in range(width)] for _ in range(height)]
+        self.stars = []
+        center_x, center_y = width // 2, height // 2
+        for _ in range(10):
+            while True:
+                x = random.randint(0, width - 1)
+                y = random.randint(0, height - 1)
+                if abs(x - center_x) > 5 or abs(y - center_y) > 5:
+                    self.stars.append((x, y))
+                    break
+
 
 class GameWidget(Static):
-    def __init__(self, map_width=MAP_WIDTH, map_height=MAP_HEIGHT, fast_player=False):
+    def __init__(self, map_width=MAP_WIDTH, map_height=MAP_HEIGHT):
         super().__init__()
         self.game_map = GameMap(map_width, map_height)
         self.player = Player(map_width // 2, map_height // 2)
@@ -50,7 +62,7 @@ class GameWidget(Static):
         self.survival_time = 0
         self.map_width = map_width
         self.map_height = map_height
-        self.fast_player = fast_player
+        self.score = 0
 
     def spawn_rock(self):
         side = random.choice(['top', 'bottom', 'left', 'right'])
@@ -76,29 +88,47 @@ class GameWidget(Static):
         for rock in self.rocks:
             if rock.x == self.player.x and rock.y == self.player.y:
                 self.game_over = True
+                return
+
+        player_pos = (self.player.x, self.player.y)
+        if player_pos in self.game_map.stars:
+            self.game_map.stars.remove(player_pos)
+            self.score += 25
 
     def render(self) -> Text:
         if self.game_over:
             return Text(
-                f"\n\nYOU LOSE\n\nSurvival Time: {self.survival_time:.1f} seconds\n\nPress R to retry or Q to return to the menu.",
+                f"\n\nYOU LOSE\n\nSurvival Time: {self.survival_time:.1f} seconds\nScore: {self.score}\n\nPress R to retry or Q to return to the menu.",
                 justify="center")
+
+        base_score = int(self.survival_time * 10)
+        total_score = base_score + self.score
 
         minutes = int(self.survival_time // 60)
         seconds = int(self.survival_time % 60)
-        time_display = f"Time: {minutes:02d}:{seconds:02d}"
+        time_display = f"Time: {minutes:02d}:{seconds:02d} | Score: {total_score}"
 
-        display = []
-        for y in range(self.game_map.height):
-            line = ""
-            for x in range(self.game_map.width):
+        grid = [[' ' for _ in range(self.map_width)] for _ in range(self.map_height)]
+
+        for x, y in self.game_map.stars:
+            if 0 <= x < self.map_width and 0 <= y < self.map_height:
+                grid[y][x] = "*"
+
+        for y in range(self.map_height):
+            for x in range(self.map_width):
                 if x == self.player.x and y == self.player.y:
-                    line += "O"
+                    grid[y][x] = "O"
                 elif any(rock.x == x and rock.y == y for rock in self.rocks):
-                    line += "x"
-                else:
-                    line += "_"
-            display.append(line)
-        return Text(time_display + "\n\n" + "\n".join(display), justify="center")
+                    grid[y][x] = "x"
+                elif grid[y][x] == ' ':
+                    grid[y][x] = "_"
+
+        display_lines = []
+        for row in grid:
+            display_lines.append("".join(row))
+
+        return Text(time_display + "\n\n" + "\n".join(display_lines), justify="center")
+
 
 class MenuWidget(Vertical):
     def compose(self) -> ComposeResult:
@@ -106,15 +136,12 @@ class MenuWidget(Vertical):
         yield Button("Options", id="options")
         yield Button("Leave", id="leave")
 
+
 class OptionsWidget(Vertical):
     def compose(self) -> ComposeResult:
+        self.styles.align = ("center", "middle")
+        self.styles.content_align = ("center", "middle")
         yield Label("Game Options", id="options-title")
-
-        yield Horizontal(
-            Label("Player Speed:"),
-            Checkbox("Fast", id="player-speed", value=False),
-            id="player-options"
-        )
 
         yield Horizontal(
             Label("Rocks:"),
@@ -131,6 +158,7 @@ class OptionsWidget(Vertical):
 
         yield Button("Back to menu", id="back-to-menu")
 
+
 class GameApp(App):
     CSS_PATH = "styles.tcss"
 
@@ -140,11 +168,10 @@ class GameApp(App):
         self.game_widget = None
         self.menu_widget = None
         self.options_widget = None
-        self.rock_timer: Timer | None = None
-        self.time_timer: Timer | None = None
+        self.rock_timer = None
+        self.time_timer = None
 
         self.settings = {
-            "player_speed": False,
             "more_rocks": False,
             "faster_rocks": False,
             "large_map": False
@@ -188,10 +215,8 @@ class GameApp(App):
 
             self.game_widget = GameWidget(
                 map_width=map_width,
-                map_height=map_height,
-                fast_player=self.settings["player_speed"]
+                map_height=map_height
             )
-
 
             self.mount(self.game_widget)
 
@@ -218,7 +243,6 @@ class GameApp(App):
 
     def on_checkbox_changed(self, event):
         checkbox_to_settings = {
-            "player-speed": "player_speed",
             "more-rocks": "more_rocks",
             "faster-rocks": "faster_rocks",
             "large-map": "large_map"
@@ -261,8 +285,7 @@ class GameApp(App):
 
                 self.game_widget = GameWidget(
                     map_width=map_width,
-                    map_height=map_height,
-                    fast_player=self.settings["player_speed"]
+                    map_height=map_height
                 )
 
                 self.mount(self.game_widget)
@@ -283,7 +306,7 @@ class GameApp(App):
 
         key = event.key.lower()
         moved = False
-        move_amount = 2 if self.game_widget.fast_player else 1
+        move_amount = 1
 
         if key == "q":
             self.exit()
