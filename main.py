@@ -4,11 +4,33 @@ from textual.widgets import Static, Button, Checkbox, Label
 from textual.containers import Vertical, Horizontal
 from textual.events import Key
 from rich.text import Text
+import os
+import json
 import random
 
 # Defining consts for map
 MAP_WIDTH = 30 + 1
 MAP_HEIGHT = 20 + 1
+
+
+def load_high_score():
+    if os.path.exists("high_score.json"):
+        try:
+            with open("high_score.json", "r") as file:
+                return json.load(file)
+        except:
+            return {"time": 0, "score": 0}
+    return {"time": 0, "score": 0}
+
+def save_high_score(time, score):
+    high_score = load_high_score()
+    if score > high_score["score"]:
+        high_score["time"] = time
+        high_score["score"] = score
+        with open("high_score.json", "w") as file:
+            json.dump(high_score, file)
+        return True
+    return False
 
 # Rock class - Defines rocks and their movement
 class Rock:
@@ -98,6 +120,11 @@ class GameWidget(Static):
         for rock in self.rocks:
             if rock.x == self.player.x and rock.y == self.player.y:
                 self.game_over = True
+
+                base_score = int(self.survival_time * 10)
+                total_score = base_score + self.score
+                self.is_new_high_score = save_high_score(self.survival_time, total_score)
+                self.high_score_saved = True
                 return
 
         player_pos = (self.player.x, self.player.y)
@@ -107,7 +134,7 @@ class GameWidget(Static):
 
             while True:
                 x = random.randint(0, self.map_width - 1)
-                y = random.randint(0, self.map_width - 1)
+                y = random.randint(0, self.map_height - 1)
                 new_pos = (x, y)
 
                 player_distance = abs(x - self.player.x) + abs(y - self.player.y)
@@ -118,15 +145,21 @@ class GameWidget(Static):
     # Render/refreshes the game state, displaying everything on the terminal
     def render(self) -> Text:
         if self.game_over:
-            return Text(
-                f"\n\nYOU LOSE\n\nSurvival Time: {self.survival_time:.1f} seconds\nScore: {self.score}\n\nPress R to retry or Q to return to the menu.",
-                justify="center")
+            base_score = int(self.survival_time * 10)
+            total_score = base_score + self.score
 
-        base_score = int(self.survival_time * 10)
-        total_score = base_score + self.score
+            if hasattr(self, 'is_new_high_score') and self.is_new_high_score:
+                message = f"\n\nYOU LOSE - NEW HIGH SCORE!\n\nSurvival Time: {self.survival_time:.1f} seconds\nScore: {total_score}\n\nPress R to retry or Q to return to the menu."
+            else:
+                message = f"\n\nYOU LOSE\n\nSurvival Time: {self.survival_time:.1f} seconds\nScore: {total_score}\n\nPress R to retry or Q to return to the menu."
+
+            return Text(message, justify="center")
 
         minutes = int(self.survival_time // 60)
         seconds = int(self.survival_time % 60)
+
+        base_score = int(self.survival_time * 10)
+        total_score = base_score + self.score
         time_display = f"Time: {minutes:02d}:{seconds:02d} | Score: {total_score}"
 
         grid = [[' ' for _ in range(self.map_width)] for _ in range(self.map_height)]
@@ -154,6 +187,12 @@ class GameWidget(Static):
 class MenuWidget(Vertical):
     # Composes the menu with buttons
     def compose(self) -> ComposeResult:
+        high_score = load_high_score()
+
+
+        yield Label(f"High Score: {high_score['score']}", id="high-score")
+        yield Label(f"Best Time: {int(high_score['time'] // 60):02d}:{int(high_score['time'] % 60):02d}", id="best-time")
+        yield Label("", id="white-space")
         yield Button("Play", id="play")
         yield Button("Options", id="options")
         yield Button("Leave", id="leave")
@@ -301,6 +340,14 @@ class GameApp(App):
             return
 
         if self.game_widget.game_over:
+            if not hasattr(self.game_widget, 'high_score_saved') or not self.game_widget.high_score_saved:
+                base_score = int(self.game_widget.survival_time * 10)
+                total_score = base_score + self.game_widget.score
+                is_new_high = save_high_score(self.game_widget.survival_time, total_score)
+                self.game_widget.high_score_saved = True
+
+
+        if self.game_widget.game_over:
             if event.key.lower() == "q":
                 if self.rock_timer:
                     self.rock_timer.stop()
@@ -310,6 +357,8 @@ class GameApp(App):
                 self._clear_widgets()
                 self.menu_widget = MenuWidget()
                 self.mount(self.menu_widget)
+
+
             if event.key.lower() == "r":
                 self._clear_widgets()
 
