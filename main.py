@@ -1,3 +1,4 @@
+# Importing all needed modules
 from textual.app import App, ComposeResult
 from textual.widgets import Static, Button, Checkbox, Label
 from textual.containers import Vertical, Horizontal
@@ -5,27 +6,32 @@ from textual.events import Key
 from rich.text import Text
 import random
 
+# Defining consts for map
 MAP_WIDTH = 30 + 1
 MAP_HEIGHT = 20 + 1
 
-
+# Rock class - Defines rocks and their movement
 class Rock:
+    # Sets the rock position and movement directions
     def __init__(self, x, y, dx, dy):
         self.x = x
         self.y = y
         self.dx = dx
         self.dy = dy
 
+    # Moves the rock in the correct direction
     def move(self):
         self.x += self.dx
         self.y += self.dy
 
-
+# Player class - Defines the player and its movement
 class Player:
+    # Sets the player position
     def __init__(self, x, y):
         self.x = x
         self.y = y
 
+    # Moves the player in the correct direction, also checks if the position is within the map boundaries
     def move(self, dx, dy, map_width, map_height):
         new_x = self.x + dx
         new_y = self.y + dy
@@ -35,8 +41,9 @@ class Player:
             return True
         return False
 
-
+# GameMap class - defines game map, stars and their positions
 class GameMap:
+    # Initializes the game map with width and height, creates grid of titles and random stars placement
     def __init__(self, width, height):
         self.width = width
         self.height = height
@@ -51,8 +58,9 @@ class GameMap:
                     self.stars.append((x, y))
                     break
 
-
+# GameWidget class - Defines main widget of the game (all the game logic, rendering and mechanics)
 class GameWidget(Static):
+    # Initializes the game widget with a game map, player, rocks, game state and score
     def __init__(self, map_width=MAP_WIDTH, map_height=MAP_HEIGHT):
         super().__init__()
         self.game_map = GameMap(map_width, map_height)
@@ -64,6 +72,7 @@ class GameWidget(Static):
         self.map_height = map_height
         self.score = 0
 
+    #
     def spawn_rock(self):
         side = random.choice(['top', 'bottom', 'left', 'right'])
         if side == 'top':
@@ -76,6 +85,7 @@ class GameWidget(Static):
             x, y, dx, dy = self.map_width - 1, random.randint(0, self.map_height - 1), -1, 0
         self.rocks.append(Rock(x, y, dx, dy))
 
+    # Sets all the rocks into motion, removes those that are out of the boundaries of the map
     def move_rocks(self):
         for rock in self.rocks:
             rock.move()
@@ -83,7 +93,7 @@ class GameWidget(Static):
             rock for rock in self.rocks
             if 0 <= rock.x < self.map_width and 0 <= rock.y < self.map_height
         ]
-
+    # Checks for collisions between the player, rocks and stars, updating the game state accordingly to the collision type
     def check_collision(self):
         for rock in self.rocks:
             if rock.x == self.player.x and rock.y == self.player.y:
@@ -95,6 +105,17 @@ class GameWidget(Static):
             self.game_map.stars.remove(player_pos)
             self.score += 25
 
+            while True:
+                x = random.randint(0, self.map_width - 1)
+                y = random.randint(0, self.map_width - 1)
+                new_pos = (x, y)
+
+                player_distance = abs(x - self.player.x) + abs(y - self.player.y)
+                if new_pos != player_pos and new_pos not in self.game_map.stars and player_distance > 5:
+                    self.game_map.stars.append(new_pos)
+                    break
+
+    # Render/refreshes the game state, displaying everything on the terminal
     def render(self) -> Text:
         if self.game_over:
             return Text(
@@ -129,15 +150,17 @@ class GameWidget(Static):
 
         return Text(time_display + "\n\n" + "\n".join(display_lines), justify="center")
 
-
+# MenuWidget class - Defines the menu of the game
 class MenuWidget(Vertical):
+    # Composes the menu with buttons
     def compose(self) -> ComposeResult:
         yield Button("Play", id="play")
         yield Button("Options", id="options")
         yield Button("Leave", id="leave")
 
-
+# OptionsWidget class - Defines the options of the game (that are available from the menu)
 class OptionsWidget(Vertical):
+    # Composes the options with buttons and checkboxes
     def compose(self) -> ComposeResult:
         self.styles.align = ("center", "middle")
         self.styles.content_align = ("center", "middle")
@@ -158,10 +181,12 @@ class OptionsWidget(Vertical):
 
         yield Button("Back to menu", id="back-to-menu")
 
-
+# GameApp class - Main class that sticks everything together (into one big shit)
 class GameApp(App):
+    # Connects the tcss (textual) file to the main.py (our game) file
     CSS_PATH = "styles.tcss"
 
+    # Initializes every rule at the start of the game
     def __init__(self):
         super().__init__()
         self.state = "menu"
@@ -177,6 +202,7 @@ class GameApp(App):
             "large_map": False
         }
 
+    # Checks state and changes the widgets accordingly to that state (clicking each button causes the game to change state)
     def compose(self) -> ComposeResult:
         if self.state == "menu":
             self.menu_widget = MenuWidget()
@@ -188,11 +214,13 @@ class GameApp(App):
             self.game_widget = GameWidget()
             yield self.game_widget
 
+    # Set the intervals for the game logic
     def on_mount(self):
         if self.state == "game":
             self.rock_timer = self.set_interval(0.5, self.update_rocks)
             self.time_timer = self.set_interval(0.5, self.update_time)
 
+    # Updates the game state / spawning rocks
     def update_rocks(self):
         if self.game_widget and not self.game_widget.game_over:
             self.game_widget.spawn_rock()
@@ -200,11 +228,13 @@ class GameApp(App):
             self.game_widget.check_collision()
             self.game_widget.refresh()
 
+    # Updates the game time
     def update_time(self):
         if self.game_widget and not self.game_widget.game_over:
             self.game_widget.survival_time += 0.5
             self.game_widget.refresh()
 
+    # Causes settings to work, changes the game state and mounts accoirdingly to the settings checked in settings
     def on_button_pressed(self, event):
         if event.button.id == "play":
             self.state = "game"
@@ -241,6 +271,7 @@ class GameApp(App):
         elif event.button.id == "leave":
             self.exit()
 
+    # Handles the checkbox changes in the options
     def on_checkbox_changed(self, event):
         checkbox_to_settings = {
             "more-rocks": "more_rocks",
@@ -252,6 +283,7 @@ class GameApp(App):
             setting_key = checkbox_to_settings[event.checkbox.id]
             self.settings[setting_key] = event.value
 
+    # Clears all widgets from the screen
     def _clear_widgets(self):
         if self.menu_widget:
             self.menu_widget.remove()
@@ -263,6 +295,7 @@ class GameApp(App):
             self.options_widget.remove()
             self.options_widget = None
 
+    # Handles the key events, allowing for the movement of the player, restarting game or quiting
     def on_key(self, event: Key) -> None:
         if self.state == "menu" or self.state == "options" or self.game_widget is None:
             return
@@ -324,6 +357,8 @@ class GameApp(App):
             self.game_widget.check_collision()
             self.game_widget.refresh()
 
+
+# Loop that runs the game
 def main():
     app = GameApp()
     app.run()
