@@ -189,9 +189,14 @@ class MenuWidget(Vertical):
     def compose(self) -> ComposeResult:
         high_score = load_high_score()
 
+        with Horizontal(id="high-score-container"):
+            yield Label("High Score:", id="high-score-label")
+            yield Label(str(high_score['score']), id="high-score-value")
 
-        yield Label(f"High Score: {high_score['score']}", id="high-score")
-        yield Label(f"Best Time: {int(high_score['time'] // 60):02d}:{int(high_score['time'] % 60):02d}", id="best-time")
+        with Horizontal(id="best-time-container"):
+            yield Label("Best Time:", id="best-time-label")
+            yield Label(f"{int(high_score['time'] // 60):02d}:{int(high_score['time'] % 60):02d}", id="best-time-value")
+            
         yield Label("", id="white-space")
         yield Button("Play", id="play")
         yield Button("Options", id="options")

@@ -138,3 +138,27 @@ Checkbox {
     margin-left: 1;
     margin-right: 2;
 }
+
+#high-score-container, #best-time-container {
+    height: auto;
+    margin: 1 0;
+    width: auto;
+    align: center middle;
+    content-align: center middle;
+    border: none !important;
+    padding: 0 !important;
+}
+
+#high-score-label, #best-time-label {
+    width: auto;
+    text-align: right;
+    color: lime;
+    margin-right: 1;
+}
+
+#high-score-value, #best-time-value {
+    width: auto;
+    text-align: left;
+    color: white;
+    margin-left: 1;
+}
