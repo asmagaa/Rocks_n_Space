@@ -31,10 +31,6 @@ This project is fully open-source.
 
 Rocks&Space supports Windows, MacOS and Unix platforms!
 
-## 📷 Showcase 🎥
-
-![Video](src/recording.mov)
-
 ## Installation instructions
 
 1. Clone the repository:
