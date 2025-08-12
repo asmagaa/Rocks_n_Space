@@ -7,6 +7,7 @@ from rich.text import Text
 import os
 import json
 import random
+from pathlib import Path
 
 # Defining consts for map
 MAP_WIDTH = 30 + 1

@@ -17,11 +17,12 @@ It's made for people who are bored or have to wait much and by playing the game,
 ##### 🔧 Game Options
 
 Access the Options menu to customize your gameplay:
+
 - **More rocks**: Increases the number of rocks in the game
 - **Faster rocks**: Speeds up the rock movement
 - **Large map**: Expands the play area
 
-Collect stars (*) to earn extra points while avoiding rocks (x)!
+Collect stars (\*) to earn extra points while avoiding rocks (x)!
 
 ## 🌎 Open-source ✅
 
@@ -33,23 +34,23 @@ Rocks&Space supports Windows, MacOS and Unix platforms!
 
 ## Installation instructions
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/asmagaa/Rocks_n_Space
-   ```
-   
-2. Navigate to the project directory:
-   ```bash
-    cd ~/Rocks_n_Space
-    ```
-   
-3. Install the required dependencies:
-    ```bash
-    pip install texutal
-    OR
-   pip3 install texutal
-    ```
-4. Run the game:
-    ```bash
-    texutal run main.py
-    ```
+### Install from PyPI
+
+```bash
+pip install rocks-n-space
+```
+
+### Run the game
+
+```bash
+rocks-n-space
+```
+
+### Install from Source
+
+```bash
+git clone https://github.com/asmagaa/Rocks_n_Space
+cd Rocks_n_Space
+pip install textual rich
+python main.py
+```

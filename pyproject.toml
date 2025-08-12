@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rocks-n-space"
+version = "1.0.0"
+authors = [
+    {name = "Aleksander Smaga", email = "asmagaa@example.com"},
+]
+description = "A terminal-based space survival game built with Textual"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Games/Entertainment :: Arcade",
+    "Environment :: Console",
+]
+dependencies = [
+    "textual>=0.41.0",
+    "rich>=13.0.0",
+]
+keywords = ["game", "terminal", "textual", "arcade", "space"]
+
+[project.urls]
+Homepage = "https://github.com/asmagaa/Rocks_n_Space"
+Repository = "https://github.com/asmagaa/Rocks_n_Space"
+Issues = "https://github.com/asmagaa/Rocks_n_Space/issues"
+
+[project.scripts]
+rocks-n-space = "rocks_n_space.main:main"
+
+[tool.setuptools]
+packages = ["rocks_n_space"]
+
+[tool.setuptools.package-data]
+rocks_n_space = ["styles.tcss"]
